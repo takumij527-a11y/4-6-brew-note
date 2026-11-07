@@ -149,6 +149,7 @@ p{margin:0}
 .field{display:flex;flex-direction:column;gap:4px;min-width:0}
 .field input,.field select,.field textarea{background:var(--bg);border:1px solid var(--line);padding:9px 10px;border-radius:0;width:100%}
 .fields2{display:grid;grid-template-columns:1.6fr 1fr;gap:8px}
+.fields3{display:grid;grid-template-columns:1.5fr .75fr 1fr;gap:8px}
 
 /* sheet */
 .sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:30;display:flex;align-items:flex-end}
@@ -310,8 +311,10 @@ const frontStyle=s=>s<.47?"甘め":s>.53?"明るめ":"標準";
 const backStyle=n=>({1:"かなり軽め",2:"軽め",3:"標準",4:"濃いめ"})[n]||"";
 function recipeLine(r){
   if(r.method==="hybrid") return "ハイブリッド（スイッチ）豆20g・湯280g・90℃→70℃";
-  return `豆${r.dose}g・湯${Math.round(r.dose*r.ratio)}g（1:${r.ratio}）${r.ice?`・氷${r.ice}g`:""}・${r.temp}℃・${r.grind}・前半${frontStyle(r.share)}・後半${r.n}回`;
+  return `豆${r.dose}g・湯${Math.round(r.dose*r.ratio)}g（1:${r.ratio}）${r.ice?`・氷${r.ice}g`:""}・${r.temp}℃・${r.grind}${r.clicks!=null?`（${r.clicks}クリック）`:""}・前半${frontStyle(r.share)}・後半${r.n}回`;
 }
+// コマンダンテのクリック数。未設定なら直近の記録の値を引き継ぐ
+const lastClicks=()=>{const n=sorted().find(n=>n.recipe&&n.recipe.clicks!=null);return n?n.recipe.clicks:null};
 function barHTML(r,cur){
   const s=schedule(r);
   return `<div class="bar">${s.pours.map((x,i)=>`<div class="${x.ph}${cur!=null?(i<cur?" done":i===cur?" cur":""):""}" style="flex:${x.g}">${x.g}</div>`).join("")}</div>`;
@@ -433,6 +436,7 @@ function renderPrev(sc){
 
 /* ---------- BREW: summary ---------- */
 function renderSummary(sc){
+  if(S.recipe.clicks==null&&S.recipe.method==="46") S.recipe={...S.recipe,clicks:lastClicks()};
   const r=S.recipe, s=schedule(r);
   sc.classList.add("summary");
   sc.innerHTML=`
@@ -443,7 +447,7 @@ function renderSummary(sc){
       <div><div class="k">湯</div><div class="v">${s.total}<small>g</small></div></div>
       <div><div class="k">比率</div><div class="v">1:${r.ratio}</div></div>
       <div><div class="k">湯温</div><div class="v">${r.temp}<small>℃</small></div></div>
-      <div><div class="k">挽き目</div><div class="v" style="font-family:var(--f-body);font-size:.95rem">${esc(r.grind)}</div></div>
+      <div><div class="k">コマンダンテ</div><div class="v">${r.clicks!=null?`${r.clicks}<small>clicks</small>`:'<small>未設定</small>'}</div></div>
       <div><div class="k">${r.ice?"氷":"時間"}</div><div class="v">${r.ice?`${r.ice}<small>g</small>`:mmss(s.end)}</div></div>
     </div>
     <div class="legend"><span><i style="background:var(--gold)"></i>前半40% ${frontStyle(r.share)}（${s.f1}/${s.f2}）</span><span><i style="background:var(--back)"></i>後半60% ${r.n}回・${backStyle(r.n)}</span></div>
@@ -465,21 +469,21 @@ function openCustom(){
   const r={...S.recipe};
   const bg=document.createElement("div");bg.className="sheet-bg";
   const sh=document.createElement("div");sh.className="sheet";bg.appendChild(sh);
-  const step=(k,label,d,min,max,unit)=>`<div class="stepper"><span>${label}</span><div class="ctl"><button data-k="${k}" data-d="-${d}" aria-label="${label}を減らす">−</button><output id="o-${k}">${r[k]}${unit}</output><button data-k="${k}" data-d="${d}" aria-label="${label}を増やす">＋</button></div></div>`;
-  const lim={dose:[5,60],ratio:[5,20],temp:[70,100],ice:[0,400]}, unit={dose:"g",ratio:"",temp:"℃",ice:"g"};
+  const step=(k,label,d,min,max,unit)=>`<div class="stepper"><span>${label}</span><div class="ctl"><button data-k="${k}" data-d="-${d}" aria-label="${label}を減らす">−</button><output id="o-${k}">${r[k]==null?"—":r[k]+unit}</output><button data-k="${k}" data-d="${d}" aria-label="${label}を増やす">＋</button></div></div>`;
+  const lim={dose:[5,60],ratio:[5,20],temp:[70,100],ice:[0,400],clicks:[0,60]}, unit={dose:"g",ratio:"",temp:"℃",ice:"g",clicks:""};
   function draw(){
     const s=schedule(r);
     sh.innerHTML=`
       <div class="row between"><div><div class="label">Custom</div><h2>レシピを調整</h2></div><button class="btn small quiet" id="cClose">閉じる</button></div>
       <div>${barHTML(r)}<p class="status num" style="margin-top:4px">前半 ${s.f1}/${s.f2}g（${frontStyle(r.share)}）・後半 ${r.n}回・湯 ${s.total}g</p></div>
-      ${step("dose","豆",.5,5,60,"g")}${step("ratio","比率 1:",.5,5,20,"")}${step("temp","湯温",1,70,100,"℃")}${step("ice","氷",10,0,400,"g")}
+      ${step("clicks","コマンダンテ（クリック）",1,0,60,"")}${step("dose","豆",.5,5,60,"g")}${step("ratio","比率 1:",.5,5,20,"")}${step("temp","湯温",1,70,100,"℃")}${step("ice","氷",10,0,400,"g")}
       <div class="field"><span class="label">Front 40%｜味</span><div class="seg" id="cShare">${Object.entries(SHARE).map(([k,v])=>`<button data-v="${v}" aria-pressed="${Math.abs(r.share-v)<.01}">${k}</button>`).join("")}</div>
         <input type="range" id="cShareR" min="0.3" max="0.7" step="0.0083" value="${r.share}" aria-label="1投目の割合"></div>
       <div class="field"><span class="label">Back 60%｜濃さ</span><div class="seg" id="cN">${[1,2,3,4].map(n=>`<button data-v="${n}" aria-pressed="${r.n===n}">${n}回</button>`).join("")}</div></div>
       <div class="field"><span class="label">Grind</span><div class="seg" id="cG">${["粗挽き","中粗挽き","中挽き"].map(g=>`<button data-v="${g}" aria-pressed="${r.grind===g}">${g}</button>`).join("")}</div></div>
       <div class="field"><span class="label">Interval</span><div class="seg" id="cIv">${[[45,"45秒（ホット）"],[30,"30秒（アイス）"]].map(([v,l])=>`<button data-v="${v}" aria-pressed="${r.iv===v}">${l}</button>`).join("")}</div></div>
       <button class="btn primary block" id="cApply">この内容にする</button>`;
-    sh.querySelectorAll(".ctl button").forEach(b=>b.onclick=()=>{const k=b.dataset.k;r[k]=Math.min(lim[k][1],Math.max(lim[k][0],+(r[k]+ +b.dataset.d).toFixed(1)));if(k==="ice")r.hot=r.ice===0;draw()});
+    sh.querySelectorAll(".ctl button").forEach(b=>b.onclick=()=>{const k=b.dataset.k;if(r[k]==null){r[k]=k==="clicks"?(lastClicks()??25):0;return draw()}r[k]=Math.min(lim[k][1],Math.max(lim[k][0],+(r[k]+ +b.dataset.d).toFixed(1)));if(k==="ice")r.hot=r.ice===0;draw()});
     sh.querySelectorAll("#cShare button").forEach(b=>b.onclick=()=>{r.share=+b.dataset.v;draw()});
     sh.querySelector("#cShareR").oninput=e=>{r.share=+e.target.value;const s=schedule(r);sh.querySelector(".status").textContent=`前半 ${s.f1}/${s.f2}g（${frontStyle(r.share)}）・後半 ${r.n}回・湯 ${s.total}g`;sh.querySelector(".bar").outerHTML=barHTML(r)};
     sh.querySelector("#cShareR").onchange=draw;
@@ -579,8 +583,9 @@ function renderRate(sc){
   sc.classList.add("rate");
   sc.innerHTML=`
     <div class="row between"><div><div class="label">Tasting note</div><h2>どんな味でしたか？</h2></div><button class="back" id="rSkip" style="align-self:center">記録しない</button></div>
-    <div class="fields2">
+    <div class="fields3">
       <label class="field"><span class="status">ロースター</span><input id="roaster" list="roasterList" placeholder="例：PHILOCOFFEA" value="${esc(S.from?.roaster||lastRoaster())}"><datalist id="roasterList">${roasterList().map(b=>`<option value="${esc(b)}">`).join("")}</datalist></label>
+      <label class="field"><span class="status">クリック</span><input id="clicks" type="number" inputmode="numeric" min="0" max="60" placeholder="—" value="${r.clicks??""}"></label>
       <label class="field"><span class="status">焙煎度</span><select id="roast"><option value="">—</option>${["浅煎り","中浅煎り","中煎り","中深煎り","深煎り"].map(x=>`<option ${x===(S.from?.roast||S.quiz.a.roast)?"selected":""}>${x}</option>`).join("")}</select></label>
     </div>
     <label class="field"><input id="bean" list="beanList" placeholder="豆の名前（例：エチオピア ゲイシャ）" value="${esc(S.from?.bean||"")}"><datalist id="beanList">${beans.map(b=>`<option value="${esc(b)}">`).join("")}</datalist></label>
@@ -598,7 +603,7 @@ function renderRate(sc){
     const d=new Date();
     notes.push({id:"n"+d.getTime().toString(36)+Math.random().toString(36).slice(2,6),created:d.getTime(),
       date:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`,
-      bean:$("#bean").value.trim(),roaster:$("#roaster").value.trim(),roast:$("#roast").value,recipe:{...r},taste:{...st.taste},score:st.score,text:$("#text").value.trim(),brewTime:S.brewTime||null});
+      bean:$("#bean").value.trim(),roaster:$("#roaster").value.trim(),roast:$("#roast").value,recipe:{...r,clicks:$("#clicks").value===""?null:+$("#clicks").value},taste:{...st.taste},score:st.score,text:$("#text").value.trim(),brewTime:S.brewTime||null});
     rememberRoaster($("#roaster").value.trim());
     saveNotes();S.from=null;toast("記録しました");go("home");
   };
@@ -611,7 +616,7 @@ function groupsOf(list){
   list.forEach(n=>{const k=beanKey(n);if(!m.has(k))m.set(k,{key:k,roaster:n.roaster||"",bean:n.bean||"",notes:[]});m.get(k).notes.push(n)});
   return [...m.values()].map(g=>{g.notes.sort((a,b)=>b.created-a.created);g.latest=g.notes[0];g.best=[...g.notes].sort((a,b)=>(b.score||0)-(a.score||0)||b.created-a.created)[0];return g});
 }
-const shortRecipe=r=>r?.method==="46"?`${frontStyle(r.share)}・後半${r.n}回${r.ice?"・アイス":""}`:(r?.name||"");
+const shortRecipe=r=>r?.method==="46"?`${frontStyle(r.share)}・後半${r.n}回${r.clicks!=null?`・${r.clicks}クリック`:""}${r.ice?"・アイス":""}`:(r?.name||"");
 function noteCard(n,isBest){
   const r=n.recipe||{};
   const el=document.createElement("article");el.className="note"+(isBest?" best":"");
@@ -697,7 +702,10 @@ function openEdit(n){
     </div>
     <label class="field"><span class="status">ロースター</span><input id="eRoaster" list="eRoasterList" value="${esc(e.roaster)}"><datalist id="eRoasterList">${roasterList().map(b=>`<option value="${esc(b)}">`).join("")}</datalist></label>
     ${sameCount>1?`<label class="row status" style="gap:6px"><input type="checkbox" id="eAll" checked> 「${esc(oldBean)}」の記録 ${sameCount}件の名前をまとめて変える</label>`:""}
-    <label class="field"><span class="status">日付</span><input id="eDate" type="date" value="${esc(e.date)}"></label>
+    <div class="fields2">
+      <label class="field"><span class="status">日付</span><input id="eDate" type="date" value="${esc(e.date)}"></label>
+      <label class="field"><span class="status">コマンダンテ（クリック）</span><input id="eClicks" type="number" inputmode="numeric" min="0" max="60" placeholder="—" value="${n.recipe?.clicks??""}"></label>
+    </div>
     <div style="display:flex;flex-direction:column;gap:6px">${TASTES.map(([k,l])=>`<div class="trow"><span>${l}</span><div class="scale5" data-k="${k}">${[1,2,3,4,5].map(v=>`<button data-v="${v}" aria-pressed="${e.taste[k]===v}">${v}</button>`).join("")}</div></div>`).join("")}</div>
     <div class="row between"><span>総合</span><div class="starin">${[1,2,3,4,5].map(i=>`<button data-v="${i}" class="${i<=e.score?"on":""}" aria-label="総合 ${i}">★</button>`).join("")}</div></div>
     <label class="field"><span class="status">感想</span><textarea id="eText" rows="3">${esc(e.text)}</textarea></label>
@@ -714,6 +722,7 @@ function openEdit(n){
     const all=sh.querySelector("#eAll")?.checked;
     if(all&&oldBean&&bean!==oldBean) notes.forEach(x=>{if(x.bean===oldBean)x.bean=bean});
     const roaster=sh.querySelector("#eRoaster").value.trim(); rememberRoaster(roaster);
+    const ck=sh.querySelector("#eClicks").value; n.recipe={...(n.recipe||{}),clicks:ck===""?null:+ck};
     Object.assign(n,{bean,roaster,roast:sh.querySelector("#eRoast").value,date:sh.querySelector("#eDate").value,taste:e.taste,score:e.score,text:sh.querySelector("#eText").value.trim(),edited:Date.now()});
     saveNotes();close();toast("保存しました");render();
   };

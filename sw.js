@@ -1,6 +1,6 @@
 // 4:6 ブリューノート — オフライン用 Service Worker
 // アプリを更新したら VERSION を上げる
-const VERSION = "v7";
+const VERSION = "v8";
 const CACHE = "brewnote-" + VERSION;
 const CORE = [
   "./",
