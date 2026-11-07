@@ -1,0 +1,779 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>4:6 ブリューノート</title>
+<meta name="description" content="粕谷哲さんの4:6メソッドのレシピ・抽出タイマー・味メモ">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1E1E1E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="4:6ノート">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Cormorant+Garamond:wght@500;600&family=IBM+Plex+Mono:wght@300;400;500&display=swap">
+<style>
+/* Layout: app shell = masthead / one screen / bottom tab bar. Brewing screens fit one phone screen; only the log scrolls. */
+:root{
+  --bg:#FFFFFF; --surface:#FFFFFF; --ink:#1A1A1A; --muted:#707070; --line:#E1E1E1; --soft:#F5F4F1;
+  --band:#1E1E1E; --band-ink:#F2F2F2; --gold:#B08D57; --back:#3C3C3C; --danger:#A33A2E;
+  --f-display:"Cormorant Garamond","Times New Roman",serif;
+  --f-body:"Noto Sans JP","Hiragino Sans","Yu Gothic",sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  --gutter-l:max(16px,env(safe-area-inset-left,0px)); --gutter-r:max(16px,env(safe-area-inset-right,0px));
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#121212; --surface:#181818; --ink:#ECECEC; --muted:#9A9A9A; --line:#2E2E2E; --soft:#1F1F1F;
+  --band:#0A0A0A; --band-ink:#ECECEC; --gold:#C9A86E; --back:#8C8C8C; --danger:#E0786C; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121212; --surface:#181818; --ink:#ECECEC; --muted:#9A9A9A; --line:#2E2E2E; --soft:#1F1F1F;
+  --band:#0A0A0A; --band-ink:#ECECEC; --gold:#C9A86E; --back:#8C8C8C; --danger:#E0786C; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14.5px;line-height:1.6;letter-spacing:.02em;-webkit-text-size-adjust:100%;overscroll-behavior:none}
+[hidden]{display:none!important}
+button,input,select,textarea{font:inherit;color:inherit;letter-spacing:inherit}
+button{cursor:pointer;-webkit-tap-highlight-color:transparent}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+
+.app{height:100%;display:grid;grid-template-rows:auto 1fr auto}
+.mast{background:var(--band);color:var(--band-ink);padding:calc(env(safe-area-inset-top,0px) + 10px) var(--gutter-r) 10px var(--gutter-l);display:flex;align-items:center;justify-content:space-between;gap:8px}
+.brand{font-family:var(--f-display);font-weight:500;font-size:1.25rem;letter-spacing:.16em;margin:0;line-height:1}
+.brand b{color:var(--gold);font-weight:600}
+.mast .iconbtn{background:none;border:0;color:var(--band-ink);font-size:.78rem;letter-spacing:.1em;opacity:.75;padding:6px}
+main{overflow:hidden;position:relative;min-height:0}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;padding:16px var(--gutter-r) 16px var(--gutter-l);gap:14px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.screen.fit{overflow-y:auto}
+.tabbar{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line);background:var(--bg);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+.tabbar button{background:none;border:0;padding:10px 0 9px;display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--muted);font-size:.72rem;letter-spacing:.12em;border-top:2px solid transparent;margin-top:-1px}
+.tabbar button .en{font-family:var(--f-display);font-size:1rem;letter-spacing:.16em;font-weight:600}
+.tabbar button[aria-selected="true"]{color:var(--ink);border-top-color:var(--ink)}
+
+.label{font-family:var(--f-display);font-size:.85rem;letter-spacing:.18em;text-transform:uppercase;font-weight:600;color:var(--muted)}
+h2{font-size:1.15rem;font-weight:500;letter-spacing:.04em;margin:0;text-wrap:balance}
+h3{font-size:1rem;font-weight:500;margin:0}
+p{margin:0}
+.status{font-size:.8rem;color:var(--muted)}
+.spacer{flex:1}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.between{justify-content:space-between}
+
+.btn{border:1px solid var(--ink);background:transparent;padding:13px 18px;font-weight:500;letter-spacing:.08em;border-radius:0;text-align:center}
+.btn.primary{background:var(--ink);color:var(--bg)}
+.btn.block{width:100%}
+.btn.small{padding:8px 12px;font-size:.85rem}
+.btn.quiet{border-color:var(--line)}
+.btn.danger{color:var(--danger);border-color:var(--line)}
+.btn:disabled{opacity:.35;cursor:default}
+.back{background:none;border:0;padding:4px 0;color:var(--muted);font-size:.85rem;letter-spacing:.06em;align-self:flex-start}
+.back::before{content:"‹ "}
+
+/* big choices */
+.choice{display:flex;flex-direction:column;gap:6px;text-align:left;border:1px solid var(--line);background:var(--surface);padding:18px 16px;border-radius:0;width:100%}
+.choice:hover,.choice:active{border-color:var(--ink)}
+.choice .t{font-size:1.05rem;font-weight:500}
+.choice .s{font-size:.82rem;color:var(--muted)}
+.choice .k{font-family:var(--f-display);font-size:.8rem;letter-spacing:.2em;color:var(--gold);font-weight:600;text-transform:uppercase}
+.choice.hero{background:var(--band);color:var(--band-ink);border-color:var(--band)}
+.choice.hero .s{color:color-mix(in srgb,var(--band-ink) 65%,transparent)}
+.choice:disabled{opacity:.45}
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px}
+.chip{flex:0 0 auto;border:1px solid var(--line);background:transparent;padding:7px 12px;font-size:.82rem;letter-spacing:.04em}
+.chip[aria-pressed="true"]{border-color:var(--ink);background:var(--ink);color:var(--bg)}
+.chip.ref{border-color:var(--gold);color:var(--gold)}
+
+/* quiz */
+.steps{display:flex;gap:4px}
+.steps i{flex:1;height:2px;background:var(--line)}
+.steps i.on{background:var(--ink)}
+.q{font-size:1.25rem;font-weight:500;letter-spacing:.04em}
+.opts{display:flex;flex-direction:column;gap:10px}
+.opt{display:flex;justify-content:space-between;align-items:center;gap:12px;text-align:left;border:1px solid var(--line);background:var(--surface);padding:16px;border-radius:0}
+.opt .t{font-weight:500;font-size:1rem}
+.opt .s{font-size:.8rem;color:var(--muted)}
+.opt .v{font-family:var(--f-num);font-size:.8rem;color:var(--muted);white-space:nowrap}
+.opt[aria-pressed="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+
+/* recipe summary */
+.params{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line);border-left:1px solid var(--line)}
+.params div{border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:10px 10px 8px;min-width:0}
+.params .k{font-size:.7rem;color:var(--muted);letter-spacing:.08em}
+.params .v{font-family:var(--f-num);font-size:1.15rem;line-height:1.3;white-space:nowrap}
+.params .v small{font-size:.7rem;color:var(--muted)}
+.bar{display:flex;height:34px;gap:1px;background:var(--line)}
+.bar div{display:flex;align-items:center;justify-content:center;font-family:var(--f-num);font-size:.75rem;color:#fff;min-width:0;white-space:nowrap;overflow:hidden}
+.bar .f{background:var(--gold)} .bar .b{background:var(--back)}
+.bar div.cur{outline:2px solid var(--ink);outline-offset:-2px}
+.bar div.done{opacity:.35}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .bar div{color:#111}}
+:root[data-theme="dark"] .bar div{color:#111}
+.legend{display:flex;justify-content:space-between;flex-wrap:wrap;gap:2px 12px;font-size:.75rem;color:var(--muted)}
+.legend i{display:inline-block;width:8px;height:8px;margin-right:4px}
+.memo{border:1px solid var(--line);padding:12px;display:flex;flex-direction:column;gap:6px;background:var(--soft)}
+.memo .txt{font-size:.85rem;white-space:pre-wrap}
+.stars{color:var(--gold);letter-spacing:.1em}
+.stars .off{color:var(--line)}
+.prof{display:grid;grid-template-columns:5.2em 1fr 1.2em;white-space:nowrap;gap:2px 8px;font-size:.72rem;align-items:center}
+.prof .track{height:5px;background:var(--line)}
+.prof .track i{display:block;height:100%;background:var(--ink)}
+
+/* timer */
+.timer-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.clock{font-family:var(--f-num);font-weight:300;font-size:clamp(3.4rem,18vw,5rem);line-height:1;text-align:center;letter-spacing:.02em}
+.now-card{border:1px solid var(--ink);padding:16px;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center}
+.now-card .act{font-size:1rem;letter-spacing:.06em}
+.now-card .scale{font-family:var(--f-num);font-size:clamp(2.6rem,14vw,3.6rem);color:var(--gold);line-height:1.05}
+.now-card .add{font-family:var(--f-num);font-size:.85rem;color:var(--muted)}
+.now-card.pour{background:var(--band);color:var(--band-ink);border-color:var(--band)}
+.next{display:flex;justify-content:space-between;font-size:.85rem;color:var(--muted);border-bottom:1px solid var(--line);padding-bottom:8px}
+.prep{display:flex;flex-direction:column;gap:6px;font-size:.92rem}
+.prep li{list-style:none;display:flex;gap:8px}
+.prep ul{margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.prep li::before{content:"";width:5px;height:5px;background:var(--gold);margin-top:.6em;flex:0 0 auto}
+
+/* rate */
+.trow{display:grid;grid-template-columns:4.6em 1fr;align-items:center;gap:8px}
+.scale5{display:grid;grid-template-columns:repeat(5,1fr);border:1px solid var(--line)}
+.scale5 button{border:0;border-left:1px solid var(--line);background:transparent;padding:8px 0;font-family:var(--f-num);font-size:.85rem;position:relative}
+.scale5 button:first-child{border-left:0}
+.scale5 button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.scale5 button.prev::after{content:"";position:absolute;left:50%;bottom:2px;width:4px;height:4px;margin-left:-2px;background:var(--gold);border-radius:50%}
+.starin{display:flex;gap:4px}
+.starin button{border:0;background:none;font-size:1.7rem;line-height:1;color:var(--line);padding:0 2px}
+.starin button.on{color:var(--gold)}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field input,.field select,.field textarea{background:var(--bg);border:1px solid var(--line);padding:9px 10px;border-radius:0;width:100%}
+.fields2{display:grid;grid-template-columns:1.6fr 1fr;gap:8px}
+
+/* sheet */
+.sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:30;display:flex;align-items:flex-end}
+.sheet{background:var(--bg);width:100%;max-height:88%;overflow-y:auto;padding:16px var(--gutter-r) calc(16px + env(safe-area-inset-bottom,0px)) var(--gutter-l);display:flex;flex-direction:column;gap:14px;border-top:1px solid var(--line)}
+.stepper{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px;border-bottom:1px solid var(--line);padding-bottom:10px}
+.stepper .ctl{display:flex;align-items:center}
+.stepper .ctl button{width:40px;height:36px;border:1px solid var(--line);background:transparent;font-size:1.1rem}
+.stepper .ctl output{min-width:5.2em;text-align:center;font-family:var(--f-num)}
+.seg{display:flex;border:1px solid var(--ink)}
+.seg button{flex:1;border:0;background:transparent;padding:9px 4px;font-size:.82rem}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+input[type=range]{width:100%;accent-color:var(--ink)}
+
+/* log */
+.note{border-bottom:1px solid var(--line);padding:12px 0;display:flex;flex-direction:column;gap:6px}
+.note .head{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.note .meta{font-size:.78rem;color:var(--muted)}
+.note .rec{font-family:var(--f-num);font-size:.75rem;color:var(--muted)}
+table{border-collapse:collapse;width:100%}
+th,td{text-align:right;padding:6px 4px;border-bottom:1px solid var(--line);font-size:.8rem;font-family:var(--f-num)}
+th{font-family:var(--f-body);font-size:.7rem;color:var(--muted);font-weight:500}
+th:first-child,td:first-child{text-align:left;font-family:var(--f-body);white-space:nowrap}
+.tablewrap{overflow-x:auto}
+/* ---- home: photo backdrop ---- */
+:root{--photo:url("img/home.jpg");
+  --grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --roast:radial-gradient(90% 60% at 78% 18%,#7a5236 0%,#4a2f1d 28%,#22160e 58%,#0e0a07 100%);
+  --cup:radial-gradient(38% 26% at 70% 30%,rgba(214,170,120,.22),transparent 70%);
+}
+.screen.home{color:#F3EEE7;
+  background:linear-gradient(180deg,rgba(10,8,6,0) 0%,rgba(10,8,6,.15) 45%,rgba(10,8,6,.85) 100%),var(--photo) center/cover no-repeat;
+  background-color:#0e0a07}
+.band{flex:0 0 auto;margin:-16px calc(-1 * var(--gutter-r)) 0 calc(-1 * var(--gutter-l));height:clamp(140px,26vh,200px);background-size:cover;background-position:center;background-color:#1a1410;display:flex;flex-direction:column;justify-content:flex-end;padding:0 var(--gutter-r) 10px var(--gutter-l);color:#F3EEE7}
+.band h2{color:#F3EEE7;font-size:1.3rem;letter-spacing:.08em}
+.band .credit{margin-top:4px}
+.credit{font-size:.68rem;color:rgba(243,238,231,.55);text-align:right;margin-top:-4px}
+.credit a{color:inherit}
+.screen.home .label{color:rgba(243,238,231,.7)}
+.home-title{font-size:clamp(1.6rem,7.5vw,2rem);font-weight:500;line-height:1.35;letter-spacing:.06em;margin-top:6px;text-shadow:0 1px 18px rgba(0,0,0,.35)}
+.screen.home .choice{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.22);color:#F3EEE7;-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+.screen.home .choice .s{color:rgba(243,238,231,.72)}
+.screen.home .choice.hero{background:rgba(246,242,236,.94);color:#17120e;border-color:transparent}
+.screen.home .choice.hero .s{color:#5f554c}
+.screen.home .choice.hero .k{color:#9a7643}
+.screen.home .stars .off{color:rgba(255,255,255,.25)}
+.screen.home .chip{border-color:rgba(255,255,255,.28);color:#F3EEE7;background:rgba(0,0,0,.18);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.screen.home .chip.ref{border-color:#C9A86E;color:#E3C894}
+.opt{padding:18px 16px}
+.opt .t{font-size:1.05rem}
+.choice{padding:20px 16px}
+.choice .t{font-size:1.1rem;letter-spacing:.06em}
+.screen.rate{gap:8px;padding-top:10px}
+.screen.rate .scale5 button{padding:6px 0}
+.bean-row{display:flex;gap:12px;align-items:center;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:14px 0}
+.bean-row .t{font-size:1.02rem;font-weight:500;letter-spacing:.04em}
+.bean-row .chev{color:var(--muted);font-size:1.2rem;line-height:1;margin-top:4px}
+.note.best{border:1px solid var(--gold);padding:12px;margin-bottom:4px}
+.search{width:100%;background:var(--bg);border:1px solid var(--line);padding:10px 12px;border-radius:0}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:8px}
+.grid3 .btn{padding:13px 6px}
+.pourtable{border-top:1px solid var(--line)}
+.pourtable tr.f td:first-child{box-shadow:inset 3px 0 0 var(--gold);padding-left:9px}
+.pourtable tr.b td:first-child{box-shadow:inset 3px 0 0 var(--back);padding-left:9px}
+.pourtable td{font-size:.95rem;padding:4px;line-height:1.35}
+.screen.summary{gap:8px;padding-top:10px}
+.pourtable th{padding:3px 4px}
+.params div{padding:6px 8px 5px}
+.params .k{line-height:1.3}
+.params .v{font-size:1.05rem;line-height:1.25}
+.memo.one p{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:.8rem;color:var(--muted)}
+.pourtable td.sc{font-size:1.15rem;color:var(--gold)}
+.pourtable th{text-align:right}.pourtable th:first-child{text-align:left}
+@media (max-height:700px){.params .v{font-size:1rem}.params div{padding:6px 8px}.pourtable td{padding:4px}}
+details{border-top:1px solid var(--line);padding-top:10px}
+summary{cursor:pointer;font-weight:500;letter-spacing:.04em;padding:4px 0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pcard{border:1px solid var(--line);background:var(--surface);padding:12px;text-align:left;display:flex;flex-direction:column;gap:4px;border-radius:0;min-width:0}
+.pcard .t{font-weight:500;font-size:.92rem}
+.pcard .s{font-size:.72rem;color:var(--muted);font-family:var(--f-num)}
+.mini{display:flex;height:5px;gap:1px;margin-top:4px}
+.mini .f{background:var(--gold)} .mini .b{background:var(--back)}
+.empty{padding:32px 8px;text-align:center;color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:calc(72px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;font-size:.85rem;z-index:40;white-space:nowrap}
+.carousel{display:flex;align-items:center;gap:8px}
+.carousel .nav{border:1px solid var(--line);background:transparent;width:34px;height:34px;flex:0 0 auto}
+@media (max-height:640px){.choice{padding:13px 14px}.opt{padding:12px 14px}.clock{font-size:3rem}.now-card .scale{font-size:2.4rem}}
+@media (min-width:640px){.screen{max-width:560px;margin:0 auto;left:0;right:0}}
+@media (prefers-reduced-motion:no-preference){.screen{animation:in .18s ease-out}@keyframes in{from{opacity:.4;transform:translateY(6px)}to{opacity:1;transform:none}}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="mast">
+    <h1 class="brand">4:6 BREW NOTE</h1>  </header>
+
+  <main id="main"></main>
+
+  <nav class="tabbar" role="tablist">
+    <button role="tab" data-tab="brew"><span class="en">Brew</span>淹れる</button>
+    <button role="tab" data-tab="log"><span class="en">Log</span>記録</button>
+    <button role="tab" data-tab="recipes"><span class="en">Recipes</span>レシピ</button>
+  </nav>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function(){
+"use strict";
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const TASTES=[["sweet","甘み"],["acid","酸味"],["bitter","苦味"],["body","濃さ"],["clean","クリア感"]];
+const TEMP={浅煎り:93,中煎り:88,深煎り:83};
+const SHARE={甘め:.4167,標準:.5,明るめ:.5833};
+
+/* ---------- presets ---------- */
+const base={method:"46",hot:true,dose:20,ratio:15,temp:92,grind:"粗挽き",share:.5,n:3,iv:45,ice:0};
+const PRESETS=[
+  {...base,name:"4:6 基本",desc:"甘さと酸味のバランス型"},
+  {...base,name:"甘み寄り",share:SHARE.甘め,desc:"1投目を少なく"},
+  {...base,name:"酸味・明るさ寄り",share:SHARE.明るめ,desc:"1投目を多く"},
+  {...base,name:"すっきり軽め",n:2,desc:"後半を2回で"},
+  {...base,name:"しっかり濃いめ",n:4,desc:"後半を4回で"},
+  {...base,name:"浅煎り向け",temp:93,desc:"高めの湯温"},
+  {...base,name:"深煎り向け",temp:83,share:SHARE.甘め,desc:"低めの湯温"},
+  {...base,name:"アイス（急冷式）",hot:false,ratio:7.5,temp:90,grind:"中粗挽き",iv:30,ice:150,ref:true,desc:"氷150g・30秒間隔"},
+  {...base,name:"アイス 甘み寄り",hot:false,ratio:7.5,temp:90,grind:"中粗挽き",iv:30,ice:150,share:SHARE.甘め,ref:true,desc:"急冷式で1投目少なめ"},
+];
+
+/* ---------- storage ---------- */
+const LS="brewnote.notes.v1";
+
+function lsGet(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}}
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){toast("保存できませんでした（端末の空き容量を確認してください）")}}
+let notes=lsGet(LS,[]);
+const saveNotes=()=>lsSet(LS,notes);
+const LS_ROASTERS="brewnote.roasters", DEFAULT_ROASTERS=["PHILOCOFFEA（フィロコフィア）"];
+function roasterList(){const saved=lsGet(LS_ROASTERS,DEFAULT_ROASTERS);return [...new Set([...saved,...notes.map(n=>n.roaster).filter(Boolean)])]}
+function rememberRoaster(r){if(!r)return;const l=lsGet(LS_ROASTERS,DEFAULT_ROASTERS);if(!l.includes(r)){l.push(r);lsSet(LS_ROASTERS,l)}}
+const lastRoaster=()=>sorted().find(n=>n.roaster)?.roaster||"";
+const beanLabel=n=>[n.roaster,n.bean].filter(Boolean).join(" ／ ")||"豆の名前なし";
+const sorted=()=>[...notes].sort((a,b)=>b.created-a.created);
+try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
+
+/* ---------- 4:6 math ---------- */
+function schedule(p){
+  const total=Math.round(p.dose*p.ratio);
+  const front=Math.round(total*.4), back=total-front;
+  const f1=Math.round(front*p.share), f2=front-f1;
+  const iv=p.iv||45;
+  const pours=[{t:0,g:f1,ph:"f"},{t:iv,g:f2,ph:"f"}];
+  const n=p.n, step=n>1?2*iv/(n-1):0;
+  for(let i=0;i<n;i++) pours.push({t:2*iv+Math.round(step*i),g:Math.round(back*(i+1)/n)-Math.round(back*i/n),ph:"b"});
+  let acc=0; pours.forEach(x=>{acc+=x.g;x.cum=acc});
+  return {total,front,back,f1,f2,pours,end:iv===45?210:4*iv+60};
+}
+const mmss=s=>Math.floor(s/60)+":"+String(Math.floor(s%60)).padStart(2,"0");
+const frontStyle=s=>s<.47?"甘め":s>.53?"明るめ":"標準";
+const backStyle=n=>({1:"かなり軽め",2:"軽め",3:"標準",4:"濃いめ"})[n]||"";
+function recipeLine(r){
+  if(r.method==="hybrid") return "ハイブリッド（スイッチ）豆20g・湯280g・90℃→70℃";
+  return `豆${r.dose}g・湯${Math.round(r.dose*r.ratio)}g（1:${r.ratio}）${r.ice?`・氷${r.ice}g`:""}・${r.temp}℃・${r.grind}・前半${frontStyle(r.share)}・後半${r.n}回`;
+}
+function barHTML(r,cur){
+  const s=schedule(r);
+  return `<div class="bar">${s.pours.map((x,i)=>`<div class="${x.ph}${cur!=null?(i<cur?" done":i===cur?" cur":""):""}" style="flex:${x.g}">${x.g}</div>`).join("")}</div>`;
+}
+function miniBar(r){const s=schedule(r);return `<div class="mini">${s.pours.map(x=>`<span class="${x.ph}" style="flex:${x.g}"></span>`).join("")}</div>`}
+function starsHTML(n){n=n||0;return `<span class="stars">${"★".repeat(n)}<span class="off">${"★".repeat(5-n)}</span></span>`}
+function profHTML(t){return `<div class="prof">${TASTES.map(([k,l])=>`<span>${l}</span><div class="track"><i style="width:${(t?.[k]||0)*20}%"></i></div><span class="num">${t?.[k]||"-"}</span>`).join("")}</div>`}
+
+/* ---------- app state ---------- */
+const S={tab:"brew",view:"home",recipe:{...PRESETS[0]},quiz:{i:0,a:{}},prevIdx:0,adjust:{},from:null,logFilter:"",logSort:"date"};
+const main=$("#main");
+function go(view){S.view=view;render()}
+function setTab(t){if(S.view==="timer"&&T.running&&t!=="brew"){toast("抽出中です。一時停止してから移動してください");return}S.tab=t;if(t==="brew"&&S.view==="timer"&&!T.running){}render()}
+document.querySelectorAll(".tabbar button").forEach(b=>b.addEventListener("click",()=>{if(b.dataset.tab==="log")S.logBean=null;setTab(b.dataset.tab);if(b.dataset.tab==="brew"&&S.view!=="timer")go("home")}));
+
+function render(){
+  document.querySelectorAll(".tabbar button").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===S.tab));
+  const sc=document.createElement("section");sc.className="screen";
+  main.replaceChildren(sc);
+  if(S.tab==="log") return renderLog(sc);
+  if(S.tab==="recipes") return renderRecipes(sc);
+  ({home:renderHome,quiz:renderQuiz,prev:renderPrev,summary:renderSummary,timer:renderTimer,rate:renderRate})[S.view](sc);
+}
+
+/* ---------- BREW: home ---------- */
+function renderHome(sc){
+  const last=sorted()[0];
+  sc.classList.add("home");
+  sc.innerHTML=`
+    <div class="spacer"></div>
+    <button class="choice hero" id="toQuiz"><span class="t">今日の味を決める</span></button>
+    <button class="choice" id="toPrev" ${last?"":"disabled"}><span class="t">前回のレシピから</span>
+      ${last?`<span class="s">${esc(beanLabel(last))}　${starsHTML(last.score)}</span>`:""}</button>
+    <p class="credit">Photo: <a href="https://unsplash.com/photos/F0XGFD9Z1Uk" target="_blank" rel="noopener">Nadia Valko</a> / Unsplash</p>`;
+  $("#toQuiz").onclick=()=>{S.quiz={i:0,a:{}};go("quiz")};
+  $("#toPrev").onclick=()=>{S.prevIdx=0;S.adjust={};go("prev")};
+}
+
+/* ---------- BREW: quiz ---------- */
+const QUIZ=[
+  {k:"hot",q:"ホット？アイス？",o:[{v:"hot",t:"ホット"},{v:"ice",t:"アイス"}]},
+  {k:"roast",q:"焙煎度は？",o:[{v:"浅煎り",t:"浅煎り",x:"93℃"},{v:"中煎り",t:"中煎り",x:"88℃"},{v:"深煎り",t:"深煎り",x:"83℃"}]},
+  {k:"taste",q:"どんな味に？",o:[{v:"甘め",t:"甘め",x:"5:7"},{v:"標準",t:"バランス",x:"6:6"},{v:"明るめ",t:"明るい酸味",x:"7:5"}]},
+  {k:"body",q:"濃さは？",o:[{v:2,t:"すっきり",x:"2回"},{v:3,t:"ふつう",x:"3回"},{v:4,t:"しっかり",x:"4回"}]},
+  {k:"size",q:"量は？",o:[{v:15,t:"少なめ",x:"15g"},{v:20,t:"1杯",x:"20g"},{v:30,t:"2杯",x:"30g"}]},
+];
+function quizRecipe(a){
+  const ice=a.hot==="ice";
+  const r={...base,hot:!ice,dose:a.size||20,temp:TEMP[a.roast]||92,share:SHARE[a.taste]||.5,n:a.body||3};
+  if(ice){Object.assign(r,{ratio:7.5,iv:30,grind:"中粗挽き",ref:true});r.ice=Math.round(r.dose*7.5)}
+  r.name=`${ice?"アイス":"ホット"}・${a.roast||""}・${a.taste||""}`;
+  return r;
+}
+function renderQuiz(sc){
+  const Q=QUIZ[S.quiz.i], cur=S.quiz.a[Q.k];
+  sc.innerHTML=`
+    <button class="back" id="qBack">${S.quiz.i?"前の質問":"もどる"}</button>
+    <div class="steps">${QUIZ.map((_,i)=>`<i class="${i<=S.quiz.i?"on":""}"></i>`).join("")}</div>
+    <div><div class="label">Question ${S.quiz.i+1} / ${QUIZ.length}</div><div class="q">${Q.q}</div></div>
+    <div class="opts">${Q.o.map((o,i)=>`<button class="opt" data-i="${i}" aria-pressed="${cur===o.v}"><span class="t">${o.t}</span>${o.x?`<span class="v">${o.x}</span>`:""}</button>`).join("")}</div>
+    <div class="spacer"></div>`;
+  $("#qBack").onclick=()=>{if(S.quiz.i)S.quiz.i--;else return go("home");render()};
+  sc.querySelectorAll(".opt").forEach(b=>b.onclick=()=>{
+    S.quiz.a[Q.k]=Q.o[+b.dataset.i].v;
+    if(S.quiz.i<QUIZ.length-1){S.quiz.i++;render()}
+    else{S.recipe=quizRecipe(S.quiz.a);S.from=null;go("summary")}
+  });
+}
+
+/* ---------- BREW: previous ---------- */
+const ADJ=[["sweeter","もっと甘く"],["brighter","もっと明るく"],["lighter","軽く"],["stronger","濃く"]];
+function adjusted(r,a){
+  r={...r};
+  if(a.sweeter) r.share=Math.max(.3,+(r.share-.0833).toFixed(4));
+  if(a.brighter) r.share=Math.min(.7,+(r.share+.0833).toFixed(4));
+  if(a.lighter) r.n=Math.max(1,r.n-1);
+  if(a.stronger) r.n=Math.min(4,r.n+1);
+  return r;
+}
+function renderPrev(sc){
+  const list=sorted().filter(n=>n.recipe&&n.recipe.method==="46");
+  if(!list.length){sc.innerHTML=`<button class="back" id="pb">もどる</button><div class="empty">4:6メソッドの記録がまだありません。</div>`;$("#pb").onclick=()=>go("home");return}
+  S.prevIdx=Math.min(S.prevIdx,list.length-1);
+  const n=list[S.prevIdx], r=adjusted(n.recipe,S.adjust);
+  const changed=Object.values(S.adjust).some(Boolean);
+  sc.innerHTML=`
+    <button class="back" id="pb">もどる</button>
+    <div class="carousel">
+      <button class="nav" id="older" aria-label="ひとつ前の記録" ${S.prevIdx>=list.length-1?"disabled":""}>‹</button>
+      <div style="flex:1;min-width:0;text-align:center"><div class="label">${S.prevIdx===0?"Last brew":"Brew log"}</div><div class="num muted" style="font-size:.75rem">${S.prevIdx+1} / ${list.length}</div></div>
+      <button class="nav" id="newer" aria-label="ひとつ新しい記録" ${S.prevIdx===0?"disabled":""}>›</button>
+    </div>
+    <div class="memo">
+      <div class="row between"><div style="min-width:0">${n.roaster?`<div class="status">${esc(n.roaster)}</div>`:""}<h3>${esc(n.bean||"豆の名前なし")}</h3></div>${starsHTML(n.score)}</div>
+      <div class="status">${esc([n.date,n.roast].filter(Boolean).join("・"))}</div>
+      ${profHTML(n.taste)}
+      ${n.text?`<p class="txt">${esc(n.text)}</p>`:""}
+    </div>
+    <div>
+      <div class="chips">${ADJ.map(([k,l])=>`<button class="chip" data-a="${k}" aria-pressed="${!!S.adjust[k]}">${l}</button>`).join("")}</div>
+    </div>
+    <p class="num" style="font-size:.9rem">${changed?"調整後　":""}${schedule(r).pours.map(x=>x.g).join(" / ")} g</p>
+    <p class="status num">${esc(recipeLine(r))}</p>
+    <div class="spacer"></div>
+    <div class="grid2"><button class="btn" id="pCustom">カスタム</button><button class="btn primary" id="pGo">このレシピで淹れる</button></div>`;
+  $("#pb").onclick=()=>go("home");
+  $("#older").onclick=()=>{S.prevIdx++;S.adjust={};render()};
+  $("#newer").onclick=()=>{S.prevIdx--;S.adjust={};render()};
+  sc.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{
+    const k=b.dataset.a; S.adjust[k]=!S.adjust[k];
+    if(k==="sweeter"&&S.adjust[k]) S.adjust.brighter=false; if(k==="brighter"&&S.adjust[k]) S.adjust.sweeter=false;
+    if(k==="lighter"&&S.adjust[k]) S.adjust.stronger=false; if(k==="stronger"&&S.adjust[k]) S.adjust.lighter=false;
+    render();
+  });
+  const pick=()=>{S.recipe={...r,name:changed?"前回から調整":"前回と同じ"};S.from=n;};
+  $("#pGo").onclick=()=>{pick();go("summary")};
+  $("#pCustom").onclick=()=>{pick();go("summary");openCustom()};
+}
+
+/* ---------- BREW: summary ---------- */
+function renderSummary(sc){
+  const r=S.recipe, s=schedule(r);
+  sc.classList.add("summary");
+  sc.innerHTML=`
+    <button class="back" id="sb">もどる</button>
+    <div class="row between"><div><div class="label">${r.hot===false?"Iced":"Hot"} recipe</div><h2>${esc(r.name||"4:6")}</h2></div>${r.ref?'<span class="chip ref" style="pointer-events:none">参考値</span>':""}</div>
+    <div class="params">
+      <div><div class="k">豆</div><div class="v">${r.dose}<small>g</small></div></div>
+      <div><div class="k">湯</div><div class="v">${s.total}<small>g</small></div></div>
+      <div><div class="k">比率</div><div class="v">1:${r.ratio}</div></div>
+      <div><div class="k">湯温</div><div class="v">${r.temp}<small>℃</small></div></div>
+      <div><div class="k">挽き目</div><div class="v" style="font-family:var(--f-body);font-size:.95rem">${esc(r.grind)}</div></div>
+      <div><div class="k">${r.ice?"氷":"時間"}</div><div class="v">${r.ice?`${r.ice}<small>g</small>`:mmss(s.end)}</div></div>
+    </div>
+    <div class="legend"><span><i style="background:var(--gold)"></i>前半40% ${frontStyle(r.share)}（${s.f1}/${s.f2}）</span><span><i style="background:var(--back)"></i>後半60% ${r.n}回・${backStyle(r.n)}</span></div>
+    <table class="pourtable"><thead><tr><th>時間</th><th>注ぐ</th><th>スケール</th></tr></thead><tbody>
+      ${s.pours.map((x,i)=>`<tr class="${x.ph}"><td class="num">${mmss(x.t)}</td><td>+${x.g}g</td><td class="sc">${x.cum}g</td></tr>`).join("")}
+      <tr><td class="num">${mmss(s.end)}</td><td colspan="2" style="text-align:right;font-family:var(--f-body)">${r.ice?"落ちきったら氷のグラスへ":"ドリッパーを外す"}</td></tr>
+    </tbody></table>
+    ${S.from?`<div class="memo one" style="padding:6px 10px;gap:0"><p>${starsHTML(S.from.score)} 前回：${esc(S.from.bean||"")}${S.from.text?` ／ ${esc(S.from.text)}`:""}</p></div>`:""}
+    <div class="spacer"></div>
+    <div class="grid3"><button class="btn quiet" id="sCustom">カスタム</button><button class="btn quiet" id="sTimer">タイマー</button><button class="btn primary" id="sRate">記録する</button></div>`;
+  $("#sb").onclick=()=>go(S.from?"prev":"home");
+  $("#sCustom").onclick=openCustom;
+  $("#sTimer").onclick=()=>{resetTimer();go("timer")};
+  $("#sRate").onclick=()=>{S.brewTime=null;go("rate")};
+}
+
+/* ---------- custom sheet ---------- */
+function openCustom(){
+  const r={...S.recipe};
+  const bg=document.createElement("div");bg.className="sheet-bg";
+  const sh=document.createElement("div");sh.className="sheet";bg.appendChild(sh);
+  const step=(k,label,d,min,max,unit)=>`<div class="stepper"><span>${label}</span><div class="ctl"><button data-k="${k}" data-d="-${d}" aria-label="${label}を減らす">−</button><output id="o-${k}">${r[k]}${unit}</output><button data-k="${k}" data-d="${d}" aria-label="${label}を増やす">＋</button></div></div>`;
+  const lim={dose:[5,60],ratio:[5,20],temp:[70,100],ice:[0,400]}, unit={dose:"g",ratio:"",temp:"℃",ice:"g"};
+  function draw(){
+    const s=schedule(r);
+    sh.innerHTML=`
+      <div class="row between"><div><div class="label">Custom</div><h2>レシピを調整</h2></div><button class="btn small quiet" id="cClose">閉じる</button></div>
+      <div>${barHTML(r)}<p class="status num" style="margin-top:4px">前半 ${s.f1}/${s.f2}g（${frontStyle(r.share)}）・後半 ${r.n}回・湯 ${s.total}g</p></div>
+      ${step("dose","豆",.5,5,60,"g")}${step("ratio","比率 1:",.5,5,20,"")}${step("temp","湯温",1,70,100,"℃")}${step("ice","氷",10,0,400,"g")}
+      <div class="field"><span class="label">Front 40%｜味</span><div class="seg" id="cShare">${Object.entries(SHARE).map(([k,v])=>`<button data-v="${v}" aria-pressed="${Math.abs(r.share-v)<.01}">${k}</button>`).join("")}</div>
+        <input type="range" id="cShareR" min="0.3" max="0.7" step="0.0083" value="${r.share}" aria-label="1投目の割合"></div>
+      <div class="field"><span class="label">Back 60%｜濃さ</span><div class="seg" id="cN">${[1,2,3,4].map(n=>`<button data-v="${n}" aria-pressed="${r.n===n}">${n}回</button>`).join("")}</div></div>
+      <div class="field"><span class="label">Grind</span><div class="seg" id="cG">${["粗挽き","中粗挽き","中挽き"].map(g=>`<button data-v="${g}" aria-pressed="${r.grind===g}">${g}</button>`).join("")}</div></div>
+      <div class="field"><span class="label">Interval</span><div class="seg" id="cIv">${[[45,"45秒（ホット）"],[30,"30秒（アイス）"]].map(([v,l])=>`<button data-v="${v}" aria-pressed="${r.iv===v}">${l}</button>`).join("")}</div></div>
+      <button class="btn primary block" id="cApply">この内容にする</button>`;
+    sh.querySelectorAll(".ctl button").forEach(b=>b.onclick=()=>{const k=b.dataset.k;r[k]=Math.min(lim[k][1],Math.max(lim[k][0],+(r[k]+ +b.dataset.d).toFixed(1)));if(k==="ice")r.hot=r.ice===0;draw()});
+    sh.querySelectorAll("#cShare button").forEach(b=>b.onclick=()=>{r.share=+b.dataset.v;draw()});
+    sh.querySelector("#cShareR").oninput=e=>{r.share=+e.target.value;const s=schedule(r);sh.querySelector(".status").textContent=`前半 ${s.f1}/${s.f2}g（${frontStyle(r.share)}）・後半 ${r.n}回・湯 ${s.total}g`;sh.querySelector(".bar").outerHTML=barHTML(r)};
+    sh.querySelector("#cShareR").onchange=draw;
+    sh.querySelectorAll("#cN button").forEach(b=>b.onclick=()=>{r.n=+b.dataset.v;draw()});
+    sh.querySelectorAll("#cG button").forEach(b=>b.onclick=()=>{r.grind=b.dataset.v;draw()});
+    sh.querySelectorAll("#cIv button").forEach(b=>b.onclick=()=>{r.iv=+b.dataset.v;draw()});
+    sh.querySelector("#cClose").onclick=close;
+    sh.querySelector("#cApply").onclick=()=>{r.name=(S.recipe.name||"").includes("カスタム")?S.recipe.name:(S.recipe.name?S.recipe.name+"（カスタム）":"カスタム");S.recipe=r;close();go("summary")};
+  }
+  function close(){bg.remove()}
+  bg.addEventListener("click",e=>{if(e.target===bg)close()});
+  draw();document.body.appendChild(bg);
+}
+
+/* ---------- BREW: timer ---------- */
+const T={t0:null,elapsed:0,raf:null,running:false,lastBeep:-1,wake:null};
+// 音は使わない。対応端末（主にAndroid）でだけ軽く振動させる
+function beep(freq,len){try{navigator.vibrate&&navigator.vibrate(len>.2?[120,60,120]:40)}catch(e){}}
+const elapsed=()=>T.t0===null?T.elapsed:T.elapsed+(performance.now()-T.t0)/1000;
+function resetTimer(){T.t0=null;T.elapsed=0;T.running=false;T.lastBeep=-1;cancelAnimationFrame(T.raf);releaseWake()}
+async function lockWake(){try{T.wake=await navigator.wakeLock.request("screen")}catch(e){}}
+function releaseWake(){try{T.wake&&T.wake.release()}catch(e){}T.wake=null}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&T.running)lockWake()});
+
+function renderTimer(sc){
+  const r=S.recipe, s=schedule(r);
+  sc.innerHTML=`
+    <div class="timer-top"><button class="back" id="tb">${T.running||T.elapsed?"中止":"もどる"}</button><span class="status">${esc(r.name||"")}</span></div>
+    <div class="clock" id="clock">0:00</div>
+    <div id="tBody"></div>
+    <div id="tBar"></div>
+    <div class="spacer"></div>
+    <div class="grid2" id="tCtl"></div>`;
+  $("#tb").onclick=()=>{resetTimer();go("summary")};
+  drawTimer(true);
+}
+function drawTimer(full){
+  if(S.view!=="timer"||S.tab!=="brew") return;
+  const r=S.recipe, s=schedule(r), e=elapsed();
+  const clock=$("#clock"); if(!clock) return;
+  clock.textContent=mmss(e);
+  let cur=-1; s.pours.forEach((x,i)=>{if(e>=x.t)cur=i});
+  const started=T.running||T.elapsed>0, finished=e>=s.end;
+  // beeps: 3s before each pour (short), at pour (long), at end
+  if(T.running){
+    const marks=[...s.pours.map(p=>p.t),s.end];
+    marks.forEach((m,i)=>{
+      const pre=m-3;
+      if(m>0&&e>=pre&&T.lastBeep<pre&&e<m){beep(880,.08)}
+      if(e>=m&&T.lastBeep<m){beep(i===marks.length-1?660:1320,.35)}
+    });
+    T.lastBeep=e;
+  }
+  let body;
+  if(!started){
+    body=`<div class="prep"><div class="label">Ready</div><ul>
+      <li>豆 <b class="num">${r.dose}g</b> を${esc(r.grind)}に</li>
+      <li>お湯 <b class="num">${r.temp}℃</b>（${s.total}g＋予備）</li>
+      ${r.ice?`<li>サーバーに氷 <b class="num">${r.ice}g</b> を入れてからスケールを0に</li>`:"<li>リンスしたフィルターをセットし、スケールを0に</li>"}
+      <li>スタートと同時に1投目</li></ul></div>`;
+  }else if(finished){
+    body=`<div class="now-card pour"><div class="act">${r.ice?"落ちきったら氷を入れたグラスへ":"ドリッパーを外す"}</div><div class="scale">完了</div><div class="add">合計 ${s.total}g</div></div>`;
+  }else{
+    const p=s.pours[cur], since=e-p.t, pouring=since<12, next=s.pours[cur+1];
+    body=`<div class="now-card${pouring?" pour":""}"><div class="act">${pouring?`${cur+1}投目を注ぐ`:`${cur+1}投目 待つ`}</div><div class="scale">${p.cum}<span style="font-size:.45em">g</span></div><div class="add">+${p.g}g・${p.ph==="f"?"味":"濃度"}</div></div>
+      <div class="next" style="margin-top:10px"><span>次</span><span class="num">${next?`${mmss(next.t)} → ${next.cum}g`:`${mmss(s.end)} ${r.ice?"落ちきり":"外す"}`}</span></div>`;
+  }
+  $("#tBody").innerHTML=body;
+  $("#tBar").innerHTML=barHTML(r,started?(finished?s.pours.length:cur):null);
+  const ctl=$("#tCtl");
+  const want=!started?"start":finished?"done":T.running?"run":"pause";
+  if(full||ctl.dataset.mode!==want){
+    ctl.dataset.mode=want;
+    if(want==="start") ctl.innerHTML=`<button class="btn" id="tCus">カスタム</button><button class="btn primary" id="tStart">スタート</button>`;
+    else if(want==="run") ctl.innerHTML=`<button class="btn" id="tPause">一時停止</button><button class="btn primary" id="tFinish">完了して記録</button>`;
+    else if(want==="pause") ctl.innerHTML=`<button class="btn" id="tReset">リセット</button><button class="btn primary" id="tResume">再開</button>`;
+    else ctl.innerHTML=`<button class="btn" id="tReset">もう一度</button><button class="btn primary" id="tFinish">味を記録する</button>`;
+    const on=(id,f)=>{const b=$("#"+id);if(b)b.onclick=f};
+    on("tCus",()=>{go("summary");openCustom()});
+    on("tStart",start);on("tResume",start);
+    on("tPause",()=>{T.elapsed=elapsed();T.t0=null;T.running=false;cancelAnimationFrame(T.raf);releaseWake();drawTimer()});
+    on("tReset",()=>{resetTimer();render()});
+    on("tFinish",()=>{S.brewTime=Math.round(elapsed());resetTimer();go("rate")});
+  }
+  if(T.running) T.raf=requestAnimationFrame(()=>drawTimer());
+}
+function start(){
+  if(T.elapsed===0) beep(1320,.35);
+  T.t0=performance.now();T.running=true;lockWake();drawTimer(true);
+}
+
+/* ---------- BREW: rate ---------- */
+function renderRate(sc){
+  const r=S.recipe, prev=S.from||sorted()[0]||null;
+  const beans=[...new Set(notes.map(n=>n.bean).filter(Boolean))];
+  const st={taste:{},score:0};TASTES.forEach(([k])=>st.taste[k]=3);
+  sc.classList.add("rate");
+  sc.innerHTML=`
+    <div class="row between"><div><div class="label">Tasting note</div><h2>どんな味でしたか？</h2></div><button class="back" id="rSkip" style="align-self:center">記録しない</button></div>
+    <div class="fields2">
+      <label class="field"><span class="status">ロースター</span><input id="roaster" list="roasterList" placeholder="例：PHILOCOFFEA" value="${esc(S.from?.roaster||lastRoaster())}"><datalist id="roasterList">${roasterList().map(b=>`<option value="${esc(b)}">`).join("")}</datalist></label>
+      <label class="field"><span class="status">焙煎度</span><select id="roast"><option value="">—</option>${["浅煎り","中浅煎り","中煎り","中深煎り","深煎り"].map(x=>`<option ${x===(S.from?.roast||S.quiz.a.roast)?"selected":""}>${x}</option>`).join("")}</select></label>
+    </div>
+    <label class="field"><input id="bean" list="beanList" placeholder="豆の名前（例：エチオピア ゲイシャ）" value="${esc(S.from?.bean||"")}"><datalist id="beanList">${beans.map(b=>`<option value="${esc(b)}">`).join("")}</datalist></label>
+    <div style="display:flex;flex-direction:column;gap:6px">${TASTES.map(([k,l])=>`<div class="trow"><span>${l}</span><div class="scale5" data-k="${k}">${[1,2,3,4,5].map(v=>`<button data-v="${v}" class="${prev?.taste?.[k]===v?"prev":""}" aria-pressed="${v===3}">${v}</button>`).join("")}</div></div>`).join("")}
+      ${prev?'<span class="status" style="text-align:right">● は前回の評価</span>':""}</div>
+    <div class="row between"><span>総合</span><div class="starin" id="starin">${[1,2,3,4,5].map(i=>`<button data-v="${i}" aria-label="総合 ${i}">★</button>`).join("")}</div></div>
+    <label class="field"><textarea id="text" rows="2" placeholder="感想・次に試すこと"></textarea></label>
+    <div class="spacer"></div>
+    <button class="btn primary block" id="rSave">記録する</button>`;
+  sc.querySelectorAll(".scale5").forEach(g=>g.querySelectorAll("button").forEach(b=>b.onclick=()=>{st.taste[g.dataset.k]=+b.dataset.v;g.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b))}));
+  const stars=$("#starin").querySelectorAll("button");
+  stars.forEach(b=>b.onclick=()=>{st.score=+b.dataset.v;stars.forEach(x=>x.classList.toggle("on",+x.dataset.v<=st.score))});
+  $("#rSkip").onclick=()=>go("home");
+  $("#rSave").onclick=()=>{
+    const d=new Date();
+    notes.push({id:"n"+d.getTime().toString(36)+Math.random().toString(36).slice(2,6),created:d.getTime(),
+      date:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`,
+      bean:$("#bean").value.trim(),roaster:$("#roaster").value.trim(),roast:$("#roast").value,recipe:{...r},taste:{...st.taste},score:st.score,text:$("#text").value.trim(),brewTime:S.brewTime||null});
+    rememberRoaster($("#roaster").value.trim());
+    saveNotes();S.from=null;toast("記録しました");go("home");
+  };
+}
+
+/* ---------- LOG ---------- */
+const beanKey=n=>(n.roaster||"")+"\u0001"+(n.bean||"");
+function groupsOf(list){
+  const m=new Map();
+  list.forEach(n=>{const k=beanKey(n);if(!m.has(k))m.set(k,{key:k,roaster:n.roaster||"",bean:n.bean||"",notes:[]});m.get(k).notes.push(n)});
+  return [...m.values()].map(g=>{g.notes.sort((a,b)=>b.created-a.created);g.latest=g.notes[0];g.best=[...g.notes].sort((a,b)=>(b.score||0)-(a.score||0)||b.created-a.created)[0];return g});
+}
+const shortRecipe=r=>r?.method==="46"?`${frontStyle(r.share)}・後半${r.n}回${r.ice?"・アイス":""}`:(r?.name||"");
+function noteCard(n,isBest){
+  const r=n.recipe||{};
+  const el=document.createElement("article");el.className="note"+(isBest?" best":"");
+  el.innerHTML=`<div class="head"><div style="min-width:0">${isBest?'<div class="label" style="color:var(--gold);font-size:.72rem">◆ Best</div>':""}<h3 class="num" style="font-size:.95rem">${esc(n.date||"")}　${esc(shortRecipe(r))}</h3></div>${starsHTML(n.score)}</div>
+    <div class="rec">${esc(recipeLine(r))}</div>
+    ${profHTML(n.taste)}
+    ${n.text?`<p class="txt" style="font-size:.85rem;white-space:pre-wrap">${esc(n.text)}</p>`:""}
+    <div class="row">${r.method==="46"?'<button class="btn small again">この条件で淹れる</button>':""}<button class="btn small quiet edit">編集</button><button class="btn small danger del">削除</button></div>`;
+  const ag=el.querySelector(".again"); if(ag) ag.onclick=()=>{S.recipe={...r};S.from=n;S.tab="brew";go("summary")};
+  el.querySelector(".edit").onclick=()=>openEdit(n);
+  const del=el.querySelector(".del");
+  del.onclick=()=>{if(del.dataset.armed){notes=notes.filter(x=>x.id!==n.id);saveNotes();render()}else{del.dataset.armed=1;del.textContent="本当に削除";setTimeout(()=>{if(del.isConnected){delete del.dataset.armed;del.textContent="削除"}},4000)}};
+  return el;
+}
+function renderBeanDetail(sc){
+  const g=groupsOf(notes).find(x=>x.key===S.logBean);
+  if(!g){S.logBean=null;return renderLog(sc)}
+  sc.innerHTML=`
+    <button class="back" id="lb">記録</button>
+    <div>${g.roaster?`<div class="label">${esc(g.roaster)}</div>`:""}<h2>${esc(g.bean||"豆の名前なし")}</h2><p class="status">${g.notes.length}回・最新 ${esc(g.latest.date||"")}</p></div>
+    <div id="bnotes"></div>`;
+  $("#lb").onclick=()=>{S.logBean=null;render()};
+  const box=$("#bnotes");
+  const best=g.notes.length>1&&g.best.score?g.best:null;
+  if(best) box.appendChild(noteCard(best,true));
+  g.notes.filter(n=>n!==best).forEach(n=>box.appendChild(noteCard(n,false)));
+}
+function renderLog(sc){
+  if(S.logBean) return renderBeanDetail(sc);
+  const roasters=[...new Set(notes.map(n=>n.roaster).filter(Boolean))].sort();
+  const q=(S.logQuery||"").trim().toLowerCase();
+  const list=notes.filter(n=>(!S.logFilter||n.roaster===S.logFilter)&&(!q||[n.bean,n.roaster,n.text,n.roast,n.recipe?.name].join(" ").toLowerCase().includes(q)));
+  const groups=groupsOf(list);
+  if(S.logSort==="score") groups.sort((a,b)=>(b.best.score||0)-(a.best.score||0)||b.latest.created-a.latest.created);
+  else if(S.logSort==="count") groups.sort((a,b)=>b.notes.length-a.notes.length||b.latest.created-a.latest.created);
+  else groups.sort((a,b)=>b.latest.created-a.latest.created);
+  sc.innerHTML=`
+    <div class="band" style="background-image:linear-gradient(180deg,rgba(10,8,6,.05),rgba(10,8,6,.7)),url('img/log.jpg')">
+      <h2>記録 <span class="num" style="font-size:.85rem;opacity:.8">${groups.length}種・${list.length}杯</span></h2>
+      <span class="credit">Photo: <a href="https://unsplash.com/photos/CtowID5OMzU" target="_blank" rel="noopener">Mockup Graphics</a> / Unsplash</span></div>
+    <input id="lq" type="search" class="search" placeholder="豆・ロースター・感想で検索" value="${esc(S.logQuery||"")}" aria-label="記録を検索">
+    <div class="row">
+      <select id="lf" class="btn small quiet" aria-label="ロースターで絞り込み"><option value="">すべてのロースター</option>${roasters.map(b=>`<option ${b===S.logFilter?"selected":""}>${esc(b)}</option>`).join("")}</select>
+      <select id="ls" class="btn small quiet" aria-label="並び順"><option value="date">新しい順</option><option value="score" ${S.logSort==="score"?"selected":""}>評価順</option><option value="count" ${S.logSort==="count"?"selected":""}>回数順</option></select>
+    </div>
+    <div id="notes">${groups.length?"":`<div class="empty">${notes.length?"見つかりませんでした。":"まだ記録がありません。<br>「淹れる」から抽出して、味を記録しましょう。"}</div>`}</div>
+    <details><summary>比率ごとの傾向</summary><div id="trends" style="margin-top:8px"></div></details>
+    <details><summary>バックアップ</summary>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+        <p class="status">記録はこの端末の中だけにあります。機種変更に備えてときどき書き出してください。</p>
+        <div class="grid2"><button class="btn small" id="exp">書き出す</button><label class="btn small" for="imp">読み込む</label></div>
+        <input type="file" id="imp" accept="application/json,.json" hidden>
+      </div></details>`;
+  const box=$("#notes");
+  groups.forEach(g=>{
+    const b=document.createElement("button");b.className="bean-row";
+    b.innerHTML=`<div style="min-width:0;flex:1">${g.roaster?`<div class="label" style="font-size:.72rem">${esc(g.roaster)}</div>`:""}<div class="t">${esc(g.bean||"豆の名前なし")}</div>
+      <div class="status">${g.notes.length}回・最新 ${esc(g.latest.date||"")}${g.notes.length>1&&g.best.score?`・ベスト ${esc(shortRecipe(g.best.recipe))}`:""}</div></div>
+      <div style="text-align:right">${starsHTML(g.best.score)}<div class="chev">›</div></div>`;
+    b.onclick=()=>{S.logBean=g.key;render()};
+    box.appendChild(b);
+  });
+  $("#lf").onchange=e=>{S.logFilter=e.target.value;render()};
+  const lq=$("#lq"); let qt;
+  lq.oninput=()=>{clearTimeout(qt);qt=setTimeout(()=>{S.logQuery=lq.value;const pos=lq.selectionStart;render();const n=$("#lq");n.focus();try{n.setSelectionRange(pos,pos)}catch(e){}},250)};
+  $("#ls").onchange=e=>{S.logSort=e.target.value;render()};
+  $("#trends").innerHTML=trendsHTML();
+  $("#exp").onclick=exportNotes;
+  $("#imp").onchange=importNotes;
+}
+function openEdit(n){
+  const e={bean:n.bean||"",roaster:n.roaster||"",roast:n.roast||"",date:n.date||"",taste:{...(n.taste||{})},score:n.score||0,text:n.text||""};
+  const oldBean=n.bean||"";
+  const sameCount=oldBean?notes.filter(x=>x.bean===oldBean).length:0;
+  const beans=[...new Set(notes.map(x=>x.bean).filter(Boolean))];
+  const bg=document.createElement("div");bg.className="sheet-bg";
+  const sh=document.createElement("div");sh.className="sheet";bg.appendChild(sh);
+  sh.innerHTML=`
+    <div class="row between"><div><div class="label">Edit</div><h2>記録を編集</h2></div><button class="btn small quiet" id="eClose">閉じる</button></div>
+    <div class="fields2">
+      <label class="field"><span class="status">豆の名前</span><input id="eBean" list="eBeanList" value="${esc(e.bean)}"><datalist id="eBeanList">${beans.map(b=>`<option value="${esc(b)}">`).join("")}</datalist></label>
+      <label class="field"><span class="status">焙煎度</span><select id="eRoast"><option value="">—</option>${["浅煎り","中浅煎り","中煎り","中深煎り","深煎り"].map(x=>`<option ${x===e.roast?"selected":""}>${x}</option>`).join("")}</select></label>
+    </div>
+    <label class="field"><span class="status">ロースター</span><input id="eRoaster" list="eRoasterList" value="${esc(e.roaster)}"><datalist id="eRoasterList">${roasterList().map(b=>`<option value="${esc(b)}">`).join("")}</datalist></label>
+    ${sameCount>1?`<label class="row status" style="gap:6px"><input type="checkbox" id="eAll" checked> 「${esc(oldBean)}」の記録 ${sameCount}件の名前をまとめて変える</label>`:""}
+    <label class="field"><span class="status">日付</span><input id="eDate" type="date" value="${esc(e.date)}"></label>
+    <div style="display:flex;flex-direction:column;gap:6px">${TASTES.map(([k,l])=>`<div class="trow"><span>${l}</span><div class="scale5" data-k="${k}">${[1,2,3,4,5].map(v=>`<button data-v="${v}" aria-pressed="${e.taste[k]===v}">${v}</button>`).join("")}</div></div>`).join("")}</div>
+    <div class="row between"><span>総合</span><div class="starin">${[1,2,3,4,5].map(i=>`<button data-v="${i}" class="${i<=e.score?"on":""}" aria-label="総合 ${i}">★</button>`).join("")}</div></div>
+    <label class="field"><span class="status">感想</span><textarea id="eText" rows="3">${esc(e.text)}</textarea></label>
+    <p class="status num">${esc(recipeLine(n.recipe||{}))}</p>
+    <button class="btn primary block" id="eSave">保存する</button>`;
+  sh.querySelectorAll(".scale5").forEach(g=>g.querySelectorAll("button").forEach(b=>b.onclick=()=>{e.taste[g.dataset.k]=+b.dataset.v;g.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b))}));
+  const st=sh.querySelectorAll(".starin button");
+  st.forEach(b=>b.onclick=()=>{e.score=+b.dataset.v===e.score?0:+b.dataset.v;st.forEach(x=>x.classList.toggle("on",+x.dataset.v<=e.score))});
+  const close=()=>bg.remove();
+  sh.querySelector("#eClose").onclick=close;
+  bg.addEventListener("click",ev=>{if(ev.target===bg)close()});
+  sh.querySelector("#eSave").onclick=()=>{
+    const bean=sh.querySelector("#eBean").value.trim();
+    const all=sh.querySelector("#eAll")?.checked;
+    if(all&&oldBean&&bean!==oldBean) notes.forEach(x=>{if(x.bean===oldBean)x.bean=bean});
+    const roaster=sh.querySelector("#eRoaster").value.trim(); rememberRoaster(roaster);
+    Object.assign(n,{bean,roaster,roast:sh.querySelector("#eRoast").value,date:sh.querySelector("#eDate").value,taste:e.taste,score:e.score,text:sh.querySelector("#eText").value.trim(),edited:Date.now()});
+    saveNotes();close();toast("保存しました");render();
+  };
+  document.body.appendChild(bg);
+}
+function groupTable(title,groups,order){
+  const rows=order.filter(g=>groups[g]);
+  if(!rows.length) return "";
+  return `<div class="tablewrap" style="margin-bottom:12px"><table><thead><tr><th>${title}</th><th>件</th>${TASTES.map(([,l])=>`<th>${l}</th>`).join("")}<th>総合</th></tr></thead><tbody>`+
+    rows.map(g=>{const a=groups[g],avg=k=>(a.reduce((s,n)=>s+(n.taste?.[k]||0),0)/a.length).toFixed(1),sc=a.filter(n=>n.score);
+      return `<tr><td>${g}</td><td>${a.length}</td>${TASTES.map(([k])=>`<td>${avg(k)}</td>`).join("")}<td>${sc.length?(sc.reduce((s,n)=>s+n.score,0)/sc.length).toFixed(1):"—"}</td></tr>`}).join("")+`</tbody></table></div>`;
+}
+function trendsHTML(){
+  const f={},b={};
+  notes.filter(n=>n.recipe?.method==="46").forEach(n=>{const fs=frontStyle(n.recipe.share);(f[fs]=f[fs]||[]).push(n);const bs=`${n.recipe.n}回`;(b[bs]=b[bs]||[]).push(n)});
+  const h=groupTable("前半",f,["甘め","標準","明るめ"])+groupTable("後半",b,["1回","2回","3回","4回"]);
+  return h||`<p class="status">記録がたまると、前半の配分・後半の回数ごとに味の平均が出ます。</p>`;
+}
+async function exportNotes(){
+  const json=JSON.stringify({app:"brewnote",version:1,exported:new Date().toISOString(),notes},null,2);
+  const name=`brewnote-${new Date().toISOString().slice(0,10)}.json`;
+  const file=new File([json],name,{type:"application/json"});
+  try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:"4:6 ブリューノート"});return}}catch(e){if(e&&e.name==="AbortError")return}
+  const a=document.createElement("a");a.href=URL.createObjectURL(file);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);
+}
+async function importNotes(e){
+  const f=e.target.files[0]; if(!f) return;
+  try{const d=JSON.parse(await f.text());const inc=Array.isArray(d)?d:d.notes;if(!Array.isArray(inc))throw 0;
+    const ids=new Set(notes.map(n=>n.id));let c=0;inc.forEach(n=>{if(n&&n.id&&!ids.has(n.id)){notes.push(n);c++}});saveNotes();toast(`${c}件を読み込みました`);render();
+  }catch(err){toast("読み込めませんでした。書き出したJSONを選んでください")}
+}
+
+/* ---------- RECIPES ---------- */
+function renderRecipes(sc){
+  sc.innerHTML=`
+    <div class="band" style="background-image:linear-gradient(180deg,rgba(10,8,6,.05),rgba(10,8,6,.7)),url('img/recipes.jpg')">
+      <h2>4:6メソッド</h2>
+      <span class="credit">Photo: <a href="https://unsplash.com/photos/b-gELLMwOhg" target="_blank" rel="noopener">Pradeep Javedar</a> / Unsplash</span></div>
+    <table><tbody>
+      <tr><td>前半40%</td><td style="text-align:left;font-family:var(--f-body)">味。1投目を少なく→甘く、多く→明るく</td></tr>
+      <tr><td>後半60%</td><td style="text-align:left;font-family:var(--f-body)">濃さ。回数を少なく→軽く、多く→濃く</td></tr>
+      <tr><td>基本</td><td style="text-align:left;font-family:var(--f-body)">豆20g・湯300g・粗挽き・45秒ごと・3:30で外す</td></tr>
+    </tbody></table>
+    <div class="grid2">${PRESETS.map((p,i)=>{const s=schedule(p);return `<button class="pcard" data-p="${i}"><span class="t">${esc(p.name)}</span><span class="s">${s.pours.map(x=>x.g).join("/")}・${p.temp}℃${p.ice?`・氷${p.ice}`:""}</span>${p.ref?'<span class="s" style="color:var(--gold)">参考値</span>':""}</button>`}).join("")}</div>
+    <details><summary>ハイブリッドメソッド（スイッチ）<span class="status">　参考値</span></summary>
+      <div class="tablewrap" style="margin-top:8px"><table><tbody>
+        <tr><td>0:00 スイッチ開・90℃</td><td>60g</td></tr><tr><td>0:30 90℃</td><td>120g</td></tr>
+        <tr><td>1:15 スイッチ閉・70℃</td><td>280g</td></tr><tr><td>1:45 スイッチ開</td><td>—</td></tr><tr><td>3:00 完成目安</td><td>—</td></tr></tbody></table></div>
+      <p class="status" style="margin-top:6px">豆20g・中挽き・湯280g。公式動画で確認してから使ってください。</p>
+      <button class="btn small" id="hyb" style="margin-top:8px">淹れたので味を記録する</button>
+    </details>`;
+  sc.querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>{S.recipe={...PRESETS[+b.dataset.p]};S.from=null;S.tab="brew";go("summary")});
+  $("#hyb").onclick=()=>{S.recipe={method:"hybrid",name:"ハイブリッド（スイッチ）",dose:20,ratio:14,temp:90,grind:"中挽き"};S.from=null;S.tab="brew";go("rate")};
+}
+
+let tt;function toast(m){const t=$("#toast");t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,2200)}
+
+render();
+if("serviceWorker" in navigator){addEventListener("load",()=>{navigator.serviceWorker.register("sw.js").catch(()=>{})})}
+})();
+</script>
+</body>
+</html>
